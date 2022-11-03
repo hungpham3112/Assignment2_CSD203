@@ -5,7 +5,6 @@ from binary_search_tree import ProductBSTree
 from linkedlist import CustomerLinkedList, OrderingLinkedList
 from node import Node
 from utils import formatted_input
-from copy import deepcopy
 from contextlib import redirect_stdout
 
 product_data, customer_data, ordering_data = ProductBSTree(), CustomerLinkedList(), OrderingLinkedList()
@@ -15,9 +14,6 @@ class ProductEngine:
     def __init__(self):
         self.bstree = product_data
 
-    def display_data(self):
-        return ""
-
     def save_object_list(self, file: str):
         if file == "":
             return True
@@ -25,6 +21,7 @@ class ProductEngine:
             with redirect_stdout(f):
                 self.bstree.invisit()
             print("Save file successfully!!!")
+        input("Press Enter to continue...")
         return True
 
     def search_by_object(self, code):
@@ -57,7 +54,6 @@ class ProductEngine:
     def option5(self):
         file = input("Enter file: ")
         self.save_object_list(file)
-        input("Press Enter to continue...")
 
     def option6(self):
         pcode = formatted_input("Search pcode: ")
@@ -143,34 +139,23 @@ class ProductEngine:
                 self.option3()
                 return True
             case "4":
+                self.option4()
+                return True
+            case "5":
                 file = input("Enter the file name (blank to quit): ").strip()
                 if file == "":
                     return True
                 self.save_object_list(file)
                 return True
-            case "5":
-                pcode = formatted_input("Enter pcode:")
-                node = self.linkedlist.search(pcode)
-                if node:
-                    print(node)
-                else:
-                    print("Not Found")
-                return True
             case "6":
                 self.option6()
                 return True
             case "7":
-                temp = deepcopy(self.linkedlist)
-                self.linkedlist.sort_by_object()
-                self.option3()
-                self.linkedlist = temp
-                return True
-            case "8":
                 while True:
                     try:
                         pcode = formatted_input("Enter pcode (blank to leave): ")
                         if pcode == "":
-                            return self.linkedlist
+                            return True
                         elif (
                             pcode[0] != "P"
                             or (pcode[0] == "P" and not pcode[1:].isdigit())
@@ -180,31 +165,17 @@ class ProductEngine:
                                 "Invalid product code. The format should be: P<number>. E.g: P02, P299..."
                             )
                             continue
-                        elif self.search_by_object(pcode) != "Not Found":
-                            print(f"The pcode: {pcode} already exist.")
-                            continue
-                        pro_name = formatted_input("Enter pro_name: ").capitalize()
-                        if pro_name == "":
-                            continue
-                        quantity = int(formatted_input("Enter quantity: "))
-                        saled = int(formatted_input("Enter saled (saled <= quantity): "))
-                        if saled > quantity:
-                            print("Invalid input!!!")
-                            continue
-                        price = float(formatted_input("Enter price: "))
-                        product = Product(pcode, pro_name, quantity, saled, price)
-                        index = int(formatted_input("Insert index (start from 0):"))
-                        if index == "":
-                            return True
-                        elif index < 0 or index > len(self.linkedlist):
-                            return True
-                        self.linkedlist.insert_after_index(index, Node(product))
-                        print(f"Insert after index {index} successfully")
+                        self.deletebycopyleft(self.bstree.root, int(pcode[1:]))
+                        print(f"Delete {pcode} successfully.")
                         input("Press Enter to continue...")
                         return True
                     except:
                         print("Invalid input!!!")
                         continue
+            case "8":
+                self.bstree.balanceTree()
+                input("Press Enter to continue...")
+                return True
             case "9":
                 print(f"The number of product(s): {self.bstree.count_nodes(self.bstree.root)}")
                 input("Press Enter to continue...")
@@ -215,6 +186,24 @@ class ProductEngine:
                 return False
             case _:
                 return True
+
+    def deletebycopyleft(self, root, pcode):
+        if not root: return None
+        if int(root.data._pcode[1:]) == pcode:
+            if not root.right and not root.left: return None
+            if not root.right and root.left: return root.left
+            if root.right and not root.left: return root.right
+            else:
+                temp = root.left
+                while temp.right:
+                    temp = temp.right
+                root.data = temp.data
+                temp.data = None
+        elif int(root.data._pcode[1:]) > pcode:
+            root.left = self.deletebycopyleft(root.left, pcode)
+        else:
+            root.right = self.deletebycopyleft(root.right, pcode)
+        return root 
 
     def load_data_from_file(self, file: str, delimiter: str = "|"):
         try:
@@ -376,7 +365,6 @@ class CustomerEngine(ProductEngine):
 
 
 class OrderingEngine():
-    keep_track_quantity = 0
     matching_list, value_list = [], []
     def __init__(self):
         super().__init__()
@@ -438,7 +426,7 @@ class OrderingEngine():
                             product_search._saled += quantity
                             print("Order successfully!!!")
                             self.matching_list.append((pcode, ccode))
-                            self.keep_track_quantity = quantity
+                            self.value_list.append(f"{product_data.findNode(pcode)._price * quantity:.1f}")
                         else:
                             print("Not enough item to order!!!")
                             continue
@@ -452,10 +440,7 @@ class OrderingEngine():
                 input("Press Enter to continue...")
                 return True
             case "3":
-                temp = deepcopy(self.linkedlist)
-                self.linkedlist.sort_by_object()
-                print(self.display_data())
-                self.linkedlist = temp
+                print(self.display_sorted_data())
                 input("Press Enter to continue...")
                 return True
             case "0":
@@ -477,14 +462,18 @@ class OrderingEngine():
         separate_line = "-" * space * 3
         detail = ""
         global value_list
-        for node in self.linkedlist:
-            data = node.data
-            pcode = data._pcode
-            ccode = data._ccode
-            value = f"{self.keep_track_quantity * product_data.findNode(pcode)._price:.1f}"
-            self.value_list.append(value)
         for (pcode, ccode), value in zip(self.matching_list, self.value_list):
-            print(pcode, ccode, value)
+            detail += f"{pcode:<{space}}|{ccode:<{space}}|{value:<{space}}\n"
+        table = f"{first_line}\n{separate_line}\n{detail}"
+        return table
+
+    def display_sorted_data(self):
+        space = 15
+        first_line = f"{'Pcode':<{space}}|{'Ccode':<{space}}|{'Value':<{space}}"
+        separate_line = "-" * space * 3
+        detail = ""
+        global value_list
+        for (pcode, ccode), value in sorted(zip(self.matching_list, self.value_list)):
             detail += f"{pcode:<{space}}|{ccode:<{space}}|{value:<{space}}\n"
         table = f"{first_line}\n{separate_line}\n{detail}"
         return table
@@ -493,16 +482,10 @@ class OrderingEngine():
 if __name__ == "__main__":
     product_engine = ProductEngine()
     product_engine.load_data_from_file("product.txt")
-    #  product_engine.bstree.insert(Product("P08", "Banh Mi", 12, 12, 0.1))
     product_engine.option3()
-    #  product_engine.option5()
     customer_engine = CustomerEngine()
     customer_engine.load_data_from_file("customer.txt")
     print(customer_engine.display_data())
-    #  customer_engine.matching("6")
-    #  print(customer_engine.display_data())
-    #  customer_engine.matching("5")
-    #  print(customer_engine.display_data())
     ordering = OrderingEngine()
     ordering.matching("1")
     ordering.matching("2")
@@ -511,3 +494,4 @@ if __name__ == "__main__":
     ordering.matching("1")
     ordering.matching("2")
     ordering.matching("3")
+    print(sorted(zip(ordering.matching_list, ordering.value_list)))

@@ -34,10 +34,12 @@ class Myqueue:
 
 class ProductBSTree:
     def __init__(self):
-        self.root = None
+        self.root: Node | None = None
 
     def findFather(self, p):
-        if self.root.data == p or self.root == None:
+        if self.root == None:
+            return None
+        if self.root.data == p:
             return None
         cur = self.root
         father = None
@@ -79,7 +81,23 @@ class ProductBSTree:
             father.left = node
 
     # function
-
+    def insert2(self,node):
+        if self.isEmpty():
+            self.root = node
+        else:
+            curNode = self.root
+            while curNode:
+                if int(node.data._pcode[1:]) < int(curNode.data._pcode[1:]):
+                    if curNode.left == None:
+                        curNode.left = node
+                    curNode = curNode.left
+                elif int(node.data._pcode[1:]) > int(curNode.data._pcode[1:]):
+                    if curNode.right == None:
+                        curNode.right = node
+                    curNode = curNode.right
+                elif int(node.data._pcode[1:]) == int(curNode.data._pcode[1:]):
+                    return f"{node.data._pcode} has existed"
+        
     def findNode(self, pcode):  # tim node co key = p
         cur = self.root
         while cur != None:
@@ -219,6 +237,27 @@ class ProductBSTree:
             return
         self.deleteByCopyLeft(data)
 
+    def deleteByCopy(self, p):
+        q = self.findNode(p)
+        b = self.findFather(p)
+        if self.root.data == p:
+            self.root = None
+            return
+        if q == None:
+            print(f"{p} k ton tai trong cay")
+            return
+        if q.right == None and q.left == None:
+            if b.data > q.data:
+                b.left = None
+            if b.data < q.data:
+                b.right = None
+        if q.left == None and q.right != None:
+            self.deleteByCopyRight(p)
+        if q.left != None and q.right == None:
+            self.deleteByCopyLeft(p)
+        else:
+            self.deleteByCopyLeft(p)
+
     def deleteByCopyRight(self, p):
         q = self.findNode(p)
         if q == None or q.right == None:
@@ -316,3 +355,57 @@ class ProductBSTree:
 
     def previsit(self):
         self.preOrder(self.root)
+
+    def turnLeft(self, nodeList): 
+        if self.isEmpty():
+            print("Nothing in the list")
+            return
+        nodeList = nodeList[::-1]
+        i = 0
+        for node in nodeList:
+            node.left = None
+            node.right = None
+        for node in nodeList:
+            if i == 0:
+                self.root = node
+            else:
+                self.insert2(node)
+            i += 1
+
+    def balanceTree(self):
+        self.turnLeft(self.inorderNode(self.root))
+        self.convertAVLtree(self.root)
+
+    def convertAVLtree(self, root):
+        nodes = []
+        self.storeBSTNodes(root, nodes)
+        n = len(nodes)
+        self.root = self.buildTree(nodes, 0, n-1)
+
+    nodeList = []
+    def inorderNode(self, curNode):
+        if self.isEmpty():   
+            return None        
+        if curNode == None:
+            return
+        else:
+            self.inorderNode(curNode.left)
+            self.nodeList.append(curNode)
+            self.inorderNode(curNode.right)
+            return self.nodeList
+    def storeBSTNodes(self, root, nodes):
+        if not root:
+            return
+        self.storeBSTNodes(root.left, nodes)
+        nodes.append(root)
+        self.storeBSTNodes(root.right, nodes)
+
+    def buildTree(self, nodes, start, end):
+        if start > end:
+            return None
+        mid = (start+end) // 2
+        node = nodes[mid]
+    
+        node.left = self.buildTree(nodes, start, mid-1)
+        node.right = self.buildTree(nodes, mid+1, end)
+        return node
